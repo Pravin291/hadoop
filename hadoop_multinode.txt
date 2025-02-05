@@ -1,0 +1,298 @@
+
+1. Prepare the machine here we use ubuntu
+
+#sudo apt update
+
+2. Install ssh
+
+#sudo apt install ssh
+#sudo systemctl enable ssh
+#sudo systemctl start ssh
+
+3. create a user hduser
+#sudo adduser hduser
+
+Provide the sudo permission to the above user
+
+#sudo visudo
+
+Add the following line
+
+#hduser ALL=(ALL:ALL) NOPASSWD:ALL
+
+save the file
+
+4. clone the master because here is the same for master and workers nodes
+
+login as the hduser on master
+
+install java
+
+#sudo apt install openjdk-8-jdk
+
+confirm the java installation 
+#java -version
+
+5.set the variable in ~/.bashrc file
+
+#JAVA
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+export JRE_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
+#Hadoop Environment Variables
+export HADOOP_HOME=/usr/local/hadoop
+export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop
+export HADOOP_LOG_DIR=$HADOOP_HOME/logs
+export HADOOP_MAPRED_HOME=$HADOOP_HOME
+# Add Hadoop bin/ directory to PATH
+export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+export PDSH_RCMD_TYPE=ssh
+
+6.Reload the .bashrc file using
+
+#source ~/.bashrc
+
+7.Enable passwordless SSH
+
+#ssh-keygen -t rsa
+
+This will create a .ssh folder and id_rsa and id_rsa.pub file in the user home directory
+
+copy the public key file
+
+#ssh-copy-id -i ~/.ssh/id_rsa_pub hduser@localhost
+check using command, it should not ask for the password.
+#ssh hduser@localhost
+
+
+
+8. Enter the all ip address and hostname of cluster in /etc/hosts file
+
+master 192.168.82.194
+node1  192.168.82.160
+node2  192.168.82.157
+
+Then copy this id_rsa.pub to node1 and node2 using
+
+#ssh-copy-id -i ~/.ssh/id_rsa.pub hduser@node1
+#ssh-copy-id -i ~/.ssh/id_rsa.pub hduser@node2
+
+9.Download the hadoop
+#cd
+#wget -c -O hadoop.tar.gz https://dlcdn.apache.org/hadoop/common/hadoop-3.2.4/hadoop-3.2.4.tar.gz
+
+#sudo mkdir /usr/local/hadoop
+#tar xvzf hadoop.tar.gz
+#sudo mv hadoop-3.2.4/* /usr/local/hadoop
+
+10. configure the hadoop
+
+create directories for namenode and datanode
+
+#mkdir -p /usr/local/hadoop/hd_store/tmp
+#mkdir -p /usr/local/hadoop/hd_store/namenode
+#mkdir -p /usr/local/hadoop/hd_store/datanode
+
+#sudo chown -R hduser:hduser /usr/local/hadoop
+
+#sudo chmod 755 -R /usr/local/hadoop
+
+A.Edit the hadoop-env.sh file 
+
+#JAVA
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+export JRE_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
+#Hadoop Environment Variables
+export HADOOP_HOME=/usr/local/hadoop
+export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop
+export HADOOP_LOG_DIR=$HADOOP_HOME/logs
+export HDFS_NAMENODE_USER=hduser
+export HDFS_DATANODE_USER=hduser
+export HDFS_SECONDARYNAMENODE_USER=hduser
+export YARN_RESOURCEMANAGER_USER=hduser
+export YARN_NODEMANAGER_USER=hduser
+export YARN_NODEMANAGER_USER=hduser
+# Add Hadoop bin/ directory to PATH
+export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+
+Then scp this file to all other nodes
+
+On master node
+
+B.Edit core-site.xml and add the following
+
+<configuration>
+<property>
+<name>fs.defaultFS</name>
+<value>hdfs://master:9000</value>
+</property>
+</configuration>
+
+C. Edit yarn-site.xml and add following
+
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>master</value>
+    </property>
+</configuration>
+
+D. Edit hdfs-site.xml and add following.
+
+<configuration>
+    <property>
+        <name>dfs.name.dir</name>
+        <value>/usr/local/hadoop/hd-data/nn</value>
+    </property>
+    <property>
+        <name>dfs.replication</name>
+        <value>2</value>
+    </property>
+</configuration>
+
+E. Edit mapred-site.xml and add the following
+
+
+<configuration>
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+    <property>
+        <name>mapreduce.application.classpath</name>
+        <value>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*:$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*</value>
+    </property>
+</configuration>
+
+F. Edit the workers file and add the following
+
+node1
+node2
+
+---------------------------------------------------------------------
+
+on workers node
+
+A.Edit hadoop-env.sh file and add the following
+
+#JAVA
+export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/
+export JRE_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre
+#Hadoop Environment Variables
+export HADOOP_HOME=/usr/local/hadoop
+export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop
+export HADOOP_LOG_DIR=$HADOOP_HOME/logs
+export HDFS_NAMENODE_USER=hduser
+export HDFS_DATANODE_USER=hduser
+export HDFS_SECONDARYNAMENODE_USER=hduser
+export YARN_RESOURCEMANAGER_USER=hduser
+export YARN_NODEMANAGER_USER=hduser
+export YARN_NODEMANAGER_USER=hduser
+# Add Hadoop bin/ directory to PATH
+export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib/native"
+
+B.Edit core-site.xml file and add the following
+
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://master:9000</value>
+    </property>
+</configuration>
+
+C. Edit yarn-site.xml file and add the following.
+
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>master</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.aux-services</name>
+        <value>mapreduce_shuffle</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.local-dirs</name>
+        <value>/usr/local/hadoop/hd-data/yarn/data</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.logs-dirs</name>
+        <value>/usr/local/hadoop/hd-data/yarn/logs</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.disk-health-checker.max-disk-utilization-perdisk-percentage</name>
+        <value>99.9</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.vmem-check-enabled</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>yarn.nodemanager.env-whitelist</name>
+        <value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_MAPRED_HOME</value>
+    </property>
+</configuration>
+
+D. Edit hdfs-site.xml file and add the following.
+
+<configuration>
+    <property>
+        <name>dfs.data.dir</name>
+        <value>/usr/local/hadoop/hd-data/dn</value>
+    </property>
+    <property>
+        <name>dfs.replication</name>
+        <value>2</value>
+    </property>
+</configuration>
+
+E.Edit the mapred-site.xml and add the following.
+
+<configuration>
+    <property>
+        <name>mapreduce.framework.name</name>
+        <value>yarn</value>
+    </property>
+    <property>
+        <name>mapreduce.application.classpath</name>
+        <value>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*:$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*</value>
+    </property>
+</configuration>
+
+F. Edit workers file and add the localhost entry.
+
+localhost
+
+11. Start hadoop daemons
+
+#hadoop namenode -format
+#start-dfs.sh
+#start-yarn.sh
+
+check using the jps command.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+	
+
+
+
